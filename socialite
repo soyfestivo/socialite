@@ -1,0 +1,9 @@
+#ifndef _SOCIALITE_
+#define _SOCIALITE_
+
+#include "lib/web.h"
+#include "lib/web/client.h"
+#include "lib/client.h"
+#include "lib/net_stream.h"
+
+#endif
