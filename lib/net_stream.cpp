@@ -46,8 +46,10 @@ Socialite::NetStream::NetStream(SSL_CTX* ctx, int s, int config) {
 	}
 	else if(config == NS_CLIENT) {
 		SSL_set_connect_state(ssl);
-		if(SSL_connect(ssl) != 1) {
-			cout << "SSL_connect failed\n";
+		int ret;
+		if((ret = SSL_connect(ssl)) != 1) {
+			cout << "SSL_connect failed: " << ret << " " << SSL_get_error(ssl, ret) << "\n";
+			printError(ret);
 			close();
 			return;
 		}
