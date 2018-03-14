@@ -5,5 +5,6 @@
 #include "lib/web/client.h"
 #include "lib/client.h"
 #include "lib/net_stream.h"
+#include "lib/server.h"
 
 #endif
