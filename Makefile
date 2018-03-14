@@ -18,18 +18,26 @@ client.o:
 server.o:
 	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/server.cpp -o server.o
 
+web_server.o:
+	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/web/server.cpp -o web_server.o
+
+util.o:
+	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/util.cpp -o util.o
+
 web_client.o:
 	g++ -fpic $(FLAGS) -c lib/web/client.cpp -o web_client.o
 
-all: net_stream.o client.o web_client.o web.o server.o
-	g++ -shared $(EXTRA_INCLUDES) -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib $(LIBS) $(FLAGS) -o libSocialte.so net_stream.o client.o web_client.o web.o server.o
+all: net_stream.o client.o web_client.o web.o server.o web_server.o util.o
+	g++ -shared $(EXTRA_INCLUDES) -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib $(LIBS) $(FLAGS) -o libSocialte.so net_stream.o client.o web_client.o web.o server.o web_server.o util.o
 
 examples: all examples/example_1.cpp examples/server.cpp
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/example_1.cpp -o example_1
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/server.cpp -o server
+	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/web_server.cpp -o web_server
 
 clean:
 	-rm *.o
 	-rm *.so
 	-rm example_1
 	-rm server
+	-rm web_server

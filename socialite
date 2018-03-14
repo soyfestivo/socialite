@@ -3,8 +3,11 @@
 
 #include "lib/web.h"
 #include "lib/web/client.h"
+#include "lib/web/server.h"
+
 #include "lib/client.h"
 #include "lib/net_stream.h"
 #include "lib/server.h"
+#include "lib/util.h"
 
 #endif
