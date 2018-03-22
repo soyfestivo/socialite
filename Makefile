@@ -32,7 +32,9 @@ install: all
 	cp socialite /usr/local/include
 	-mkdir /usr/local/include/socialite_lib
 	cp -r lib/*.h /usr/local/include/socialite_lib
-	cp libSocilate.so /usr/local/lib
+	-mkdir /usr/local/include/socialite_lib/web
+	cp -r lib/web/*.h /usr/local/include/socialite_lib/web
+	cp libSocialte.so /usr/local/lib
 
 examples: all examples/example_1.cpp examples/server.cpp
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/example_1.cpp -o example_1

@@ -71,7 +71,7 @@ typedef struct host_config {
 	std::string docRoot;
 	std::vector<std::string> indexFiles;
 	std::string notFoundPage;
-	std::vector<std::pair<std::string, std::string>> rewriteRules;
+	std::vector< std::pair<std::string, std::string> > rewriteRules;
 	std::vector<std::string> serverRewriteRules;
 	std::vector<std::string> authRequired;
 	std::string forbiddenURI;

@@ -1,13 +1,13 @@
 #ifndef _SOCIALITE_
 #define _SOCIALITE_
 
-#include "lib/web.h"
-#include "lib/web/client.h"
-#include "lib/web/server.h"
+#include "socialite_lib/web.h"
+#include "socialite_lib/web/client.h"
+#include "socialite_lib/web/server.h"
 
-#include "lib/client.h"
-#include "lib/net_stream.h"
-#include "lib/server.h"
-#include "lib/util.h"
+#include "socialite_lib/client.h"
+#include "socialite_lib/net_stream.h"
+#include "socialite_lib/server.h"
+#include "socialite_lib/util.h"
 
 #endif
