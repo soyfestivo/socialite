@@ -223,7 +223,6 @@ bool Socialite::Web::Server::readHeader(NetStream* ns, HttpHeader* header, int* 
 
 	regex shape2("^([A-Za-z\\-]+): ([^]+)$");
 	while((line = ns->readLine()) != "" && lastLine != "") {
-		//cout << "Socialite::Web::Server::readHeader <<"<< line << ">>" << line.length() << ":" << (int) line[0] << "\n";
 		if(line == "\r") {
 			break; // ???? possibly a Chrome bug
 		}
@@ -262,14 +261,12 @@ bool Socialite::Web::Server::readHeader(NetStream* ns, HttpHeader* header, int* 
 			}
 		}
 	}
-	//std::cout << "Socialite::Web::Server::readHeader empty line: " << line.length() << ": " << line << "\n";
 
 	if(header->type == WS_POST && header->contentLength > 0) {
 		header->postData = ns->read(header->contentLength);
 		std::cout << header->postData << "\n";
 		mapPostData(header->postMap, header->postData);
 	}
-	//std::cout << "Socialite::Web::Server::readHeader done\n";
 	return true;
 }
 
@@ -288,7 +285,19 @@ string Socialite::Web::Server::cgiLaunch(string file, HttpHeader* header, string
 		dup2(pipeFds[1], STDOUT);
 		close(pipeFds[1]);
 
-		execl("/usr/bin/python", "/usr/bin/python", file.c_str(), NULL);
+		regex pythonFileShape("^.*\\.py$");
+		regex rubyFileShape("^.*\\.rb$");
+
+		smatch matcher;
+
+		if(regex_match(file, matcher, pythonFileShape)) {
+			execl("/usr/bin/python", "/usr/bin/python", file.c_str(), NULL);
+		}
+		else if(regex_match(file, matcher, rubyFileShape)) {
+			execl("/usr/bin/ruby", "/usr/bin/ruby", file.c_str(), NULL);
+		}
+
+		
 
 		cout << "ERROR: could not launch " << file << "\n";
 		exit(1);
@@ -513,7 +522,7 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 		}
 		if(!serverMatched) {
 			// cgi scripts check /////////
-			regex shape(".*\\.py");
+			regex shape(".*\\.(py|rb)");
 
 			if(regex_match(fullURI, matcher, shape)) {
 				cout << "     cgiLaunch " << fullURI << "\n";
