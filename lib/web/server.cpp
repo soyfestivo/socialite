@@ -352,7 +352,6 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 		rHeader.allowCache = true;
 
 		bool serverMatched = false;
-		regex apiShape("^/api/([^/]+)/([^/]+)/([^/]+)(?:[/]*)$");
 		string data;
 		int fileFd = 0;
 		string fullURI;

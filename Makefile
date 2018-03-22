@@ -2,8 +2,6 @@ FLAGS = -std=c++11 -O2
 LIBS = -lssl -lcrypto -lresolv -lJuggler
 EXTRA_INCLUDES = -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib
 
-# external libs
-
 # namespaces
 web.o:
 	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/web.cpp -o web.o
@@ -29,6 +27,12 @@ web_client.o:
 
 all: net_stream.o client.o web_client.o web.o server.o web_server.o util.o
 	g++ -shared $(EXTRA_INCLUDES) -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib $(LIBS) $(FLAGS) -o libSocialte.so net_stream.o client.o web_client.o web.o server.o web_server.o util.o
+
+install: all
+	cp socialite /usr/local/include
+	-mkdir /usr/local/include/socialite_lib
+	cp -r lib/*.h /usr/local/include/socialite_lib
+	cp libSocilate.so /usr/local/lib
 
 examples: all examples/example_1.cpp examples/server.cpp
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/example_1.cpp -o example_1
