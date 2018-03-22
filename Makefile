@@ -36,7 +36,7 @@ install: all
 	cp -r lib/web/*.h /usr/local/include/socialite_lib/web
 	cp libSocialte.so /usr/local/lib
 
-examples: all examples/example_1.cpp examples/server.cpp
+examples: install examples/example_1.cpp examples/server.cpp
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/example_1.cpp -o example_1
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/server.cpp -o server
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/web_server.cpp -o web_server

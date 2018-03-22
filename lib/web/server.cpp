@@ -14,6 +14,7 @@
 #include <regex>
 #include <iomanip>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
 
 #include <openssl/ssl.h>
 #include <openssl/sha.h>
@@ -104,6 +105,8 @@ void Socialite::Web::Server::readConfigFile() {
 	string line;
 
 	HostConfig* host = new HostConfig; // default
+	host->redirect = false;
+	host->acceptHttp = true;
 	hosts.insert(std::pair<std::string, HostConfig*>("AAA", host));
 
 	smatch matcher;
@@ -271,51 +274,50 @@ bool Socialite::Web::Server::readHeader(NetStream* ns, HttpHeader* header, int* 
 }
 
 string Socialite::Web::Server::cgiLaunch(string file, HttpHeader* header, string getData) {
-	// int pipeFds[2];
-	// if(pipe(pipeFds)) {
-	// 	cout << "failed to create pipe\n";
-	// 	return ""; // failed to create pipe
-	// }
-	// pid_t pid = fork();
-	// if(pid == 0) { // child
-	// 	// swap stdin and stdout for our pipe
+	int pipeFds[2];
+	if(pipe(pipeFds)) {
+		cout << "failed to create pipe\n";
+		return ""; // failed to create pipe
+	}
+	pid_t pid = fork();
+	if(pid == 0) { // child
+		// swap stdin and stdout for our pipe
 
-	// 	dup2(pipeFds[0], STDIN);
-	// 	close(pipeFds[0]);
-	// 	dup2(pipeFds[1], STDOUT);
-	// 	close(pipeFds[1]);
+		dup2(pipeFds[0], STDIN);
+		close(pipeFds[0]);
+		dup2(pipeFds[1], STDOUT);
+		close(pipeFds[1]);
 
-	// 	User* user = NULL;
-	// 	string passString = "";
-	// 	if(header->cookies["auth-name"] != "" && header->cookies["auth-hash"] != "" && userAccounts->verify(header->cookies["auth-name"], header->cookies["auth-hash"])) {
-	// 		user = userAccounts->getUser(header->cookies["auth-name"]);
-	// 		passString = string(user->username) + ":" + string(user->fName) + ":" + string(user->lName) + ":" + string(user->email);
-	// 	}
-	// 	if(getData == "") {
-	// 		getData = "null";
-	// 	}
-	// 	execl("./PythonBridge", "./PythonBridge", file.c_str(), header->URI.c_str(), header->host.c_str(), getData.c_str(), passString.c_str(), NULL);
+		execl("/usr/bin/python", "/usr/bin/python", file.c_str(), NULL);
 
-	// 	cout << "ERROR: could not launch ./PythonBridge\n";
-	// 	exit(1);
-	// }
-	// else { // parent
-	// 	string ret = "";
-	// 	int c;
-	// 	FILE* stream = fdopen (pipeFds[0], "r");
-	// 	//cout << "getting ready to read\n";
-	// 	while ((c = fgetc(stream)) != 0x0) {
-	// 		ret += c;
-	// 	}
-	// 	fclose(stream);
-	// 	// cleanup
-	// 	int returnValue = waitpid(pid, NULL, 0); // blocking until it's done
-	// 	close(pipeFds[0]);
-	// 	close(pipeFds[1]);
+		cout << "ERROR: could not launch " << file << "\n";
+		exit(1);
+	}
+	else { // parent
+		char* buff = NULL;
+		int readLength = 0;
+		int bytesAvailable = 0;
+		int error = 0;
+		string ret = "";
+		int returnValue = waitpid(pid, NULL, 0); // blocking until it's done
+		while((error = ioctl(pipeFds[0], FIONREAD, &bytesAvailable)) == 0) {
+			if(bytesAvailable > 0) {
+				buff = new char[bytesAvailable];
+				readLength = read(pipeFds[0], buff, bytesAvailable);
+				ret += string(buff, readLength);
+				delete buff;
+			}
+			else {
+				break;
+			}
 
-	// 	return ret;
-	// }
-	// return "";
+		}
+		
+		close(pipeFds[0]);
+		close(pipeFds[1]);
+
+		return ret;
+	}
 }
 
 string Socialite::Web::Server::serverAPI(HttpHeader* header, HttpResponseHeader* rHeader, string ip, smatch matcher, bool* success) {
