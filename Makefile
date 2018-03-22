@@ -1,19 +1,19 @@
 FLAGS = -std=c++11 -O2
 LIBS = -lssl -lcrypto -lresolv -lJuggler
-EXTRA_INCLUDES = -I/Users/stephen/workspace/juggler -L/Users/stephen/workspace/juggler
+EXTRA_INCLUDES = -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib
 
 # external libs
 
 # namespaces
 web.o:
-	g++ -fpic $(FLAGS) -c lib/web.cpp -o web.o
+	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/web.cpp -o web.o
 
 # classes
 net_stream.o:
-	g++ -fpic $(FLAGS) -c lib/net_stream.cpp -o net_stream.o
+	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/net_stream.cpp -o net_stream.o
 
 client.o: 
-	g++ -fpic $(FLAGS) -c lib/client.cpp -o client.o
+	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/client.cpp -o client.o
 
 server.o:
 	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/server.cpp -o server.o
@@ -25,7 +25,7 @@ util.o:
 	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/util.cpp -o util.o
 
 web_client.o:
-	g++ -fpic $(FLAGS) -c lib/web/client.cpp -o web_client.o
+	g++ -fpic $(EXTRA_INCLUDES) $(FLAGS) -c lib/web/client.cpp -o web_client.o
 
 all: net_stream.o client.o web_client.o web.o server.o web_server.o util.o
 	g++ -shared $(EXTRA_INCLUDES) -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib $(LIBS) $(FLAGS) -o libSocialte.so net_stream.o client.o web_client.o web.o server.o web_server.o util.o

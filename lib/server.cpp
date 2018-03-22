@@ -28,8 +28,7 @@ struct connection_thread_h {
 };
 
 // implied SSL given cert and key file paths
-Socialite::Server::Server(int portNumber, string cert, string key, int maxThreads, int flags) {
-	streamPolicy = std::pair<string, int>("none", 0);
+Socialite::Server::Server(int portNumber, string cert, string key, string certPassword, int maxThreads, int flags) {
 	threads = new Juggler::ThreadManager(maxThreads + 1); // +1 for listening thread
 	mainLoopThreadId = -1;
 	setupError = false;
@@ -43,7 +42,7 @@ Socialite::Server::Server(int portNumber, string cert, string key, int maxThread
 	runningSSL = true;
 	waitingCount = 4;
 
-	if(!setupSSL(cert, key)) {
+	if(!setupSSL(cert, key, certPassword)) {
 		setupError = true;
 		printf("ERROR: setupSSL\n");
 		//exit(1);
@@ -57,7 +56,6 @@ Socialite::Server::Server(int portNumber, string cert, string key, int maxThread
 }
 
 Socialite::Server::Server(int portNumber, int maxThreads, int flags) {
-	streamPolicy = std::pair<string, int>("none", 0);
 	threads = new Juggler::ThreadManager(maxThreads + 1); // +1 for listening thread
 	mainLoopThreadId = -1;
 	setupError = false;
@@ -73,7 +71,7 @@ Socialite::Server::Server(int portNumber, int maxThreads, int flags) {
 
 	if(flags & S_SSL_SERVER) {
 		runningSSL = true;
-		if(!setupSSL("./cert_client.pem", "./key_client.pem")) {
+		if(!setupSSL("./cert_client.pem", "./key_client.pem", "default_password")) {
 			setupError = true;
 			printf("ERROR: setupSSL\n");
 		}
@@ -89,14 +87,7 @@ Socialite::Server::Server(int portNumber, int maxThreads, int flags) {
 	running = false;
 }
 
-bool Socialite::Server::setPolicy(std::string name, int timeout) {
-	if(streamPolicy.first == "none") {
-		streamPolicy = std::pair<string, int>(name, timeout);
-	}
-	return false; // can only change from default
-}
-
-bool Socialite::Server::setupSSL(string cert, string key) {
+bool Socialite::Server::setupSSL(string cert, string key, string password) {
 	SSL_load_error_strings();
 	OpenSSL_add_ssl_algorithms();
 	method = (SSL_METHOD*) TLSv1_2_server_method(); // TLSv1_server_method
@@ -106,8 +97,7 @@ bool Socialite::Server::setupSSL(string cert, string key) {
 		return false;
 	}
 
-	char* password = "myaga";
-	SSL_CTX_set_default_passwd_cb_userdata(ctx, (void*) password);
+	SSL_CTX_set_default_passwd_cb_userdata(ctx, (void*) password.c_str());
 	SSL_CTX_set_default_passwd_cb(ctx, pem_passwd_cb);
 
 	if(!SSL_CTX_use_PrivateKey_file(ctx, key.c_str(), SSL_FILETYPE_PEM)) {

@@ -13,8 +13,8 @@
 // usually a minimum of 4.
 #define WS_MAX_CLIENT 35
 
-#define GET 0x1a1
-#define POST 0x1b1
+#define WS_GET 0x1a1
+#define WS_POST 0x1b1
 
 #define KEEP_ALIVE 0x1c1
 #define CLOSE 0x1d1
@@ -54,7 +54,7 @@ const std::string CONTENT_TYPE_SVG = "Content-type: image/svg+xml\r\n";
 const std::string MESSAGE_404 = "<h2>404 Not Found</h2><p>This file was not found</p>";
 
 typedef struct http_h {
-	int type;                    // POST / GET
+	int type;                    // WS_POST / WS_GET
 	int closeType;               // KEEP_ALIVE / CLOSE
 	std::string URI;             // /some/folder/img.jpg
 	std::string host;            // google.com
@@ -122,7 +122,7 @@ namespace Socialite {
 			bool verifyUser(std::string username, std::string hash);
 		public:
 			// HTTPS init
-			Server(std::string cert, std::string key);
+			Server(std::string cert, std::string key, std::string certPassword);
 			// HTTP init
 			Server();
 

@@ -35,7 +35,7 @@ using Socialite::Util::parseHttpTimestamp;
 using Socialite::Util::sha256;
 using Socialite::Util::mapPostData;
 
-Socialite::Web::Server::Server(string cert, string key) : Socialite::Server(443, cert, key, WS_MAX_CLIENT, S_SSL_SERVER) {
+Socialite::Web::Server::Server(string cert, string key, string certPassword) : Socialite::Server(443, cert, key, certPassword, WS_MAX_CLIENT, S_SSL_SERVER) {
 	cout << "New secure Web::Server starting\n";
 	useSSLAlso = false;
 	readConfigFile();
@@ -49,7 +49,7 @@ Socialite::Web::Server::Server() : Socialite::Server(80, WS_MAX_CLIENT, S_DEFAUL
 
 	// spawn a second one to handle the SSL version
 	if(useSSLAlso) {
-		sslServer = new Server(sslCert, sslKey);
+		sslServer = new Server(sslCert, sslKey, "default_password");
 		sslServer->run();
 	}
 	else {
@@ -137,7 +137,7 @@ void Socialite::Web::Server::readConfigFile() {
 					host->indexFiles.push_back(tmp);
 				}
 			}
-			else if(matcher[1] == "Rewrite") { // TODO
+			else if(matcher[1] == "Rewrite") {
 				regex splitShape("^([^]+) ([^]+)$");
 				smatch splitMatch;
 				string a = matcher[2];
@@ -196,10 +196,10 @@ bool Socialite::Web::Server::readHeader(NetStream* ns, HttpHeader* header, int* 
 	if(regex_match(line, matcher, shape)) {
 		regex_search(line, matcher, shape);
 		if(matcher[1] == "GET") {
-			header->type = GET;
+			header->type = WS_GET;
 		}
 		else if(matcher[1] == "POST") {
-			header->type = POST;
+			header->type = WS_POST;
 		}
 		else {
 			header->type = -1;
@@ -261,7 +261,7 @@ bool Socialite::Web::Server::readHeader(NetStream* ns, HttpHeader* header, int* 
 	}
 	//std::cout << "Socialite::Web::Server::readHeader empty line: " << line.length() << ": " << line << "\n";
 
-	if(header->type == POST && header->contentLength > 0) {
+	if(header->type == WS_POST && header->contentLength > 0) {
 		header->postData = ns->read(header->contentLength);
 		std::cout << header->postData << "\n";
 		mapPostData(header->postMap, header->postData);
@@ -590,7 +590,7 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 			prepHeader += "Connection: close\r\n";
 		}*/
 
-		if(header.type == GET && header.closeType == KEEP_ALIVE) {
+		if(header.type == WS_GET && header.closeType == KEEP_ALIVE) {
 			prepHeader += "Keep-Alive: timeout=5, max=100\r\n";
 			prepHeader += "Connection: keep-alive\r\n";
 		}
@@ -628,7 +628,7 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 				close(fileFd);
 			}
 		}
-		if(header.type == POST) {
+		if(header.type == WS_POST) {
 			header.closeType = CLOSE; // don't keep trying
 		}
 		connectionUse++;

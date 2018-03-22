@@ -29,15 +29,15 @@ namespace Socialite {
 		volatile bool running;
 		bool setupError;
 		bool threadPerConnection;
-		std::pair<std::string, int> streamPolicy;
 
 		// SSL stuff
 		bool runningSSL;
 		SSL_METHOD* method;
 		SSL_CTX* ctx;
 		FILE* opensslErrorLogFile;
+		std::string certPassword;
 
-		bool setupSSL(std::string cert, std::string key);
+		bool setupSSL(std::string cert, std::string key, std::string password);
 		bool setupServer(int config);
 		void stop();
 
@@ -46,10 +46,10 @@ namespace Socialite {
 
 	public:
 		Server(int portNumber, int maxThreads, int flags);
-		Server(int portNumber, std::string cert, std::string key, int maxThreads, int flags);
+		Server(int portNumber, std::string cert, std::string key, std::string certPassword, int maxThreads, int flags);
 		~Server();
 
-		bool setPolicy(std::string name, int timeout);
+		void setCertPassword();
 		
 		void run();
 
