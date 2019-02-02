@@ -274,58 +274,60 @@ string Socialite::Web::Server::cgiLaunch(string file, HttpHeader* header, string
 	int pipeFds[2];
 	if(pipe(pipeFds)) {
 		cout << "failed to create pipe\n";
-		return ""; // failed to create pipe
+		return "";
 	}
-	pid_t pid = fork();
-	if(pid == 0) { // child
-		// swap stdin and stdout for our pipe
 
+	pid_t pid = fork();
+
+	if(pid == -1) {
+		cout << "failed to fork\n";
+		return "";
+	}
+	else if(pid == 0) { // child
+		// swap new fds for stdio
 		dup2(pipeFds[0], STDIN);
 		close(pipeFds[0]);
 		dup2(pipeFds[1], STDOUT);
 		close(pipeFds[1]);
 
+		// call
 		regex pythonFileShape("^.*\\.py$");
 		regex rubyFileShape("^.*\\.rb$");
-
 		smatch matcher;
 
 		if(regex_match(file, matcher, pythonFileShape)) {
 			execl("/usr/bin/python", "/usr/bin/python", file.c_str(), NULL);
 		}
 		else if(regex_match(file, matcher, rubyFileShape)) {
-			execl("/usr/bin/ruby", "/usr/bin/ruby", file.c_str(), NULL);
+			execl("/usr/bin/ruby", "/usr/bin/ruby", file.c_str(), header->host.c_str(), header->URI.c_str(), NULL);
 		}
-
-		
-
-		cout << "ERROR: could not launch " << file << "\n";
-		exit(1);
+		exit(-1);
 	}
-	else { // parent
+	else { //parent
 		char* buff = NULL;
+		std::stringstream ss;
 		int readLength = 0;
 		int bytesAvailable = 0;
 		int error = 0;
-		string ret = "";
-		int returnValue = waitpid(pid, NULL, 0); // blocking until it's done
-		while((error = ioctl(pipeFds[0], FIONREAD, &bytesAvailable)) == 0) {
+		int status = 0;
+		pid_t waitOnId;
+
+		while((error = ioctl(pipeFds[0], FIONREAD, &bytesAvailable)) == 0 && (waitOnId = waitpid(pid, &status, WNOHANG|WUNTRACED)) != pid) {
 			if(bytesAvailable > 0) {
 				buff = new char[bytesAvailable];
 				readLength = read(pipeFds[0], buff, bytesAvailable);
-				ret += string(buff, readLength);
+				ss << string(buff, readLength);
 				delete buff;
 			}
-			else {
+			else if(waitOnId != 0) { // if returns 0 we are still waiting
 				break;
 			}
-
 		}
-		
+
 		close(pipeFds[0]);
 		close(pipeFds[1]);
 
-		return ret;
+		return ss.str();
 	}
 }
 

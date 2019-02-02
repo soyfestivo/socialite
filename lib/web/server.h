@@ -118,8 +118,8 @@ namespace Socialite {
 			const std::string getContentType(std::string uri);
 			
 			// override us!
-			std::string serverAPI(HttpHeader* header, HttpResponseHeader* rHeader, std::string ip, std::smatch matcher, bool* success);
-			bool verifyUser(std::string username, std::string hash);
+			virtual std::string serverAPI(HttpHeader* header, HttpResponseHeader* rHeader, std::string ip, std::smatch matcher, bool* success);
+			virtual bool verifyUser(std::string username, std::string hash);
 		public:
 			// HTTPS init
 			Server(std::string cert, std::string key, std::string certPassword);
