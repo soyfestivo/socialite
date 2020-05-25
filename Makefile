@@ -1,4 +1,4 @@
-FLAGS = -std=c++11 -O2
+FLAGS = -std=c++11 -g
 LIBS = -lssl -lcrypto -lresolv -lJuggler
 EXTRA_INCLUDES = -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib
 
@@ -36,7 +36,7 @@ install: all
 	cp -r lib/web/*.h /usr/local/include/socialite_lib/web
 	cp libSocialte.so /usr/local/lib
 
-examples: install examples/example_1.cpp examples/server.cpp
+examples: clean install examples/example_1.cpp examples/server.cpp
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/example_1.cpp -o example_1
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/server.cpp -o server
 	g++ -I. -L. $(FLAGS) $(EXTRA_INCLUDES) $(LIBS) -lSocialte examples/web_server.cpp -o web_server
