@@ -140,6 +140,13 @@ void Socialite::Web::Server::readConfigFile() {
 					host->indexFiles.push_back(tmp);
 				}
 			}
+			else if(matcher[1] == "AccessControlAllowDomains") {
+				string tmp;
+				std::istringstream tmpStream(matcher[2]);
+				while(tmpStream >> tmp) {
+					host->allowDomains.push_back(tmp);
+				}
+			}
 			else if(matcher[1] == "Rewrite") {
 				regex splitShape("^([^]+) ([^]+)$");
 				smatch splitMatch;
@@ -314,7 +321,8 @@ string Socialite::Web::Server::cgiLaunch(string file, HttpHeader* header, string
 
 		while((error = ioctl(pipeFds[0], FIONREAD, &bytesAvailable)) == 0 && (waitOnId = waitpid(pid, &status, WNOHANG|WUNTRACED)) != pid) {
 			if(bytesAvailable > 0) {
-				buff = new char[bytesAvailable];
+				buff = new char[bytesAvailable + 1];
+				memset(buff, 0x0, bytesAvailable + 1);
 				readLength = read(pipeFds[0], buff, bytesAvailable);
 				ss << string(buff, readLength);
 				delete buff;
@@ -322,6 +330,14 @@ string Socialite::Web::Server::cgiLaunch(string file, HttpHeader* header, string
 			else if(waitOnId != 0) { // if returns 0 we are still waiting
 				break;
 			}
+		}
+
+		if(bytesAvailable > 0) {
+			buff = new char[bytesAvailable + 1];
+			memset(buff, 0x0, bytesAvailable + 1);
+			readLength = read(pipeFds[0], buff, bytesAvailable);
+			ss << string(buff, readLength);
+			delete buff;
 		}
 
 		close(pipeFds[0]);
@@ -338,17 +354,17 @@ string Socialite::Web::Server::serverAPI(HttpHeader* header, HttpResponseHeader*
 
 // the meat of the actual processing
 void Socialite::Web::Server::handleConnection(NetStream* stream) {
-	int error = 0;
 	HttpHeader header;
-	HttpResponseHeader rHeader;
-	struct stat fileStat;
-	HostConfig* currentHost;
-	smatch matcher;
 	int connectionUse = 0;
-
 	stream->setTimeout(5 * 60); // die after 5 minutes of inactivity
 
 	do { // process each request as it comes in if KEEP_ALIVE, otherwise fall through
+		int error = 0;
+		HttpResponseHeader rHeader;
+		struct stat fileStat;
+		HostConfig* currentHost;
+		smatch matcher;
+
 		time_t now;
 		time(&now);
 		struct tm* nowTime = gmtime(&now); // shouldn't it be gmtime() who knows...
@@ -364,6 +380,9 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 		rHeader.relocate = false;
 		rHeader.allowCache = true;
 
+		// memset(&header, 0x0, sizeof(HttpHeader));
+		header.postMap.erase(header.postMap.begin(), header.postMap.end());
+
 		bool serverMatched = false;
 		string data;
 		int fileFd = 0;
@@ -371,7 +390,9 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 		regex getValues("^([^\\?]+)\\?([^\\?]+)$");
 
 		readHeader(stream, &header, &error);
-		if(error) {
+		
+		// error reading headers
+		if(error != 0 || header.host == "" || header.URI == "") {
 			if(error == -1) { // broken pipe
 				return;
 			}
@@ -410,9 +431,12 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 
 		// strip off get values if any /////////////////////
 		if(regex_search(header.URI, matcher, getValues)) {
+			cout << "FROM ~" << header.URI << "\n";
 			rHeader.getData = matcher[2];
 			header.URI = matcher[1];
-			cout << "GET DATA: " << matcher[2] << "\n";
+			header.postData = rHeader.getData;
+			Util::mapPostData(header.postMap, rHeader.getData);
+			cout << "GET DATA: " << rHeader.getData << "\n";
 		}
 		//rHeader.relocate = false;
 		rHeader.URI = header.URI;
@@ -425,7 +449,7 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 				string aHash = header.cookies["auth-hash"];
 				cout << "  auth required for " << rHeader.URI << ": " << header.cookies["auth-name"] << " : " << header.cookies["auth-hash"] << "\n";
 				if(!verifyUser(aName, aHash)) { // need to redirect
-					cout << "  failed vefication\n";
+					cout << "  failed verification\n";
 					rHeader.status = HEADER_FORBIDDEN;
 					rHeader.isForbidden = true;
 					rHeader.URI = currentHost->forbiddenURI;
@@ -556,6 +580,13 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 		// security stuff
 		prepHeader += "X-Frame-Options: SAMEORIGIN\r\n";
 		prepHeader += "X-XSS-Protection: 1; mode=block\r\n";
+
+		if(std::find(currentHost->allowDomains.begin(), currentHost->allowDomains.end(), header.host) != currentHost->allowDomains.end()) {
+			prepHeader += "Access-Control-Allow-Origin: " + header.host + "\r\n";
+		}
+		else if(currentHost->allowDomains.size() == 1 && currentHost->allowDomains[0] == "*") {
+			prepHeader += "Access-Control-Allow-Origin: *\r\n";
+		}
 
 		if(port == 443) {
 			// say all request must be made over HTTPS for the next year

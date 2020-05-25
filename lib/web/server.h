@@ -77,6 +77,7 @@ typedef struct host_config {
 	std::string forbiddenURI;
 	bool redirect;
 	std::string redirectHost;
+	std::vector<std::string> allowDomains;
 } HostConfig;
 
 typedef struct http_r_h {
