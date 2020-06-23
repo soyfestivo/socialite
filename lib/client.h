@@ -16,7 +16,7 @@
 #include <openssl/ssl.h>
 #include "net_stream.h"
 
-#define DEFAULT 0
+#define DEFAULT_SERVER 0
 #define SSL_SERVER 1
 
 namespace Socialite {
