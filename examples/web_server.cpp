@@ -1,5 +1,6 @@
 #include <iostream>
 #include <socialite>
+#include <json/json.h>
 
 class CustomServer : public Socialite::Web::Server {
 	private:
@@ -14,6 +15,18 @@ class CustomServer : public Socialite::Web::Server {
 		}
 
 		return "";
+	}
+	
+	virtual Json::Value attemptJwtSignIn(std::string username, std::string password) {
+		if(username == "stephen" && password == "password") {
+			Json::Value root;
+			root["username"] = "stephen";
+			root["email"] = "stephen@localhost";
+			return root;
+		}
+		else {
+			throw -1;
+		}
 	}
 };
 

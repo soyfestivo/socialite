@@ -170,7 +170,7 @@ string Socialite::Web::Client::readHeader() {
 
 bool Socialite::Web::Client::connect() {
 	if(protocol == "http://") {
-		client = new Socialite::Client(host, 80, DEFAULT);
+		client = new Socialite::Client(host, 80, DEFAULT_SERVER);
 	}
 	else {
 		client = new Socialite::Client(host, 443, SSL_SERVER);
