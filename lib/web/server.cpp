@@ -40,6 +40,7 @@ Socialite::Web::Server::Server(string cert, string key, string certPassword) : S
 	cout << "New secure Web::Server starting\n";
 	useSSLAlso = false;
 	readConfigFile();
+	jwtSecretKey = Util::generateRandomString(128);
 	sslServer = NULL; // we already are that dummy
 }
 
@@ -47,6 +48,7 @@ Socialite::Web::Server::Server() : Socialite::Server(80, WS_MAX_CLIENT, S_DEFAUL
 	cout << "New Web::Server starting\n";
 	useSSLAlso = false;
 	readConfigFile();
+	jwtSecretKey = Util::generateRandomString(128);
 
 	// spawn a second one to handle the SSL version
 	if(useSSLAlso) {
@@ -174,6 +176,12 @@ void Socialite::Web::Server::readConfigFile() {
 			else if(matcher[1] == "AuthRequired") {
 				host->authRequired.push_back(matcher[2]);
 			}
+			else if(matcher[1] == "AuthType") {
+				host->authType = matcher[2];
+			}
+			else if(matcher[1] == "SignInRoute") {
+				host->signInRoute = matcher[2];
+			}
 			else if(matcher[1] == "EnableSSL" && matcher[2] == "true") {
 				useSSLAlso = true;
 			}
@@ -200,6 +208,7 @@ bool Socialite::Web::Server::readHeader(NetStream* ns, HttpHeader* header, int* 
 	}
 	header->cookies.erase(header->cookies.begin(), header->cookies.end()); // erase all cookies
 	header->contentLength = 0;
+	header->authorizationToken = "";
 	smatch matcher;
 	regex shape("^([A-Z]+) ([^\\s]+) HTTP/1.*$");
 
@@ -210,6 +219,9 @@ bool Socialite::Web::Server::readHeader(NetStream* ns, HttpHeader* header, int* 
 		}
 		else if(matcher[1] == "POST") {
 			header->type = WS_POST;
+		}
+		else if(matcher[1] == "OPTIONS") {
+			header->type = WS_OPTIONS;
 		}
 		else {
 			header->type = -1;
@@ -265,6 +277,9 @@ bool Socialite::Web::Server::readHeader(NetStream* ns, HttpHeader* header, int* 
 			}
 			else if(matcher[1] == "If-Modified-Since") {
 				header->ifModifiedSince = parseHttpTimestamp(matcher[2]);
+			}
+			else if(matcher[1] == "Authorization") {
+				header->authorizationToken = matcher[2];
 			}
 		}
 	}
@@ -444,16 +459,30 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 		// check if auth is required //////////////////////////
 		for(auto iter = currentHost->authRequired.begin(); iter != currentHost->authRequired.end(); ++iter) {
 			smatch matcher2;
-			if(regex_match(header.URI, matcher2, regex(*iter))) { // we've got one!
-				string aName = header.cookies["auth-name"];
-				string aHash = header.cookies["auth-hash"];
-				cout << "  auth required for " << rHeader.URI << ": " << header.cookies["auth-name"] << " : " << header.cookies["auth-hash"] << "\n";
-				if(!verifyUser(aName, aHash)) { // need to redirect
-					cout << "  failed verification\n";
-					rHeader.status = HEADER_FORBIDDEN;
-					rHeader.isForbidden = true;
-					rHeader.URI = currentHost->forbiddenURI;
-					break;
+			cout << "  auth required for " << rHeader.URI << " auth type " << currentHost->authType << "\n";
+			if(regex_match(header.URI, matcher2, regex(*iter)) && header.type != WS_OPTIONS) { // we've got one!
+				if(currentHost->authType == "JWT") {
+					try {
+						Json::Value token = Util::verifyAndReadJwt(header.authorizationToken, jwtSecretKey);
+					}
+					catch(int e) {
+						cout << "  failed auth\n";
+						rHeader.status = HEADER_FORBIDDEN;
+						rHeader.isForbidden = true;
+						rHeader.URI = currentHost->forbiddenURI;
+						break;
+					}
+				}
+				else if(currentHost->authType == "Cookie") {
+					string aName = header.cookies["auth-name"];
+					string aHash = header.cookies["auth-hash"];
+					if(!verifyUser(aName, aHash)) { // need to redirect
+						cout << "  failed auth\n";
+						rHeader.status = HEADER_FORBIDDEN;
+						rHeader.isForbidden = true;
+						rHeader.URI = currentHost->forbiddenURI;
+						break;
+					}
 				}
 			}
 		}
@@ -546,6 +575,33 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 				break;
 			}
 		}
+		
+		// check if this is a sign-in attempt
+		if(header.type == WS_POST && currentHost->signInRoute != "" && regex_search(header.URI, matcher, regex(currentHost->signInRoute))) {
+			if(currentHost->authType == "JWT") {
+				try {
+					Json::Value token = attemptJwtSignIn(header.postMap["username"], header.postMap["password"]);
+					token["host"] = header.host;
+					// TODO more token auto populated slots?
+					data = Util::generateJwt(token, jwtSecretKey);
+					rHeader.size = data.length();
+					rHeader.sendContent = true;
+					rHeader.status = HEADER_OK;
+					rHeader.runCGI = true;
+					std::cout << "sign-in attempt succeeded!\n";
+					serverMatched = true;
+				}
+				catch(int e) {
+					rHeader.status = HEADER_UNAUTHORIZED;
+					rHeader.size = 0;
+					rHeader.sendContent = false;
+					rHeader.runCGI = true;
+					std::cout << "sign-in attempt failed!\n";
+					serverMatched = true;
+				}
+			}
+		}
+
 		if(!serverMatched) {
 			// cgi scripts check /////////
 			regex shape(".*\\.(py|rb)");
@@ -569,6 +625,10 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 			rHeader.status = HEADER_FORBIDDEN;
 		}
 
+		if(header.type == WS_OPTIONS) {
+			rHeader.status = HEADER_OK;
+		}
+
 		SEND_HEADER:
 		// send header ///////////////////////////////////////////////////////////////
 		if(rHeader.relocate == true) {
@@ -586,6 +646,7 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 		}
 		else if(currentHost->allowDomains.size() == 1 && currentHost->allowDomains[0] == "*") {
 			prepHeader += "Access-Control-Allow-Origin: *\r\n";
+			prepHeader += "Access-Control-Allow-Headers: *\r\n";
 		}
 
 		if(port == 443) {
@@ -684,6 +745,11 @@ void Socialite::Web::Server::handleConnection(NetStream* stream) {
 bool Socialite::Web::Server::verifyUser(std::string username, std::string hash) {
 	// override me!
 	return false;
+}
+
+Json::Value Socialite::Web::Server::attemptJwtSignIn(std::string username, std::string password) {
+	// override me!
+	throw -1;
 }
 
 const string Socialite::Web::Server::getContentType(string uri) {

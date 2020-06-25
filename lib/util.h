@@ -6,6 +6,7 @@
 #include <map>
 #include <ctime>
 #include <functional>
+#include <json/json.h>
 
 namespace Socialite {
 	namespace Util {
@@ -16,6 +17,11 @@ namespace Socialite {
 
 		void mapPostData(std::map<std::string, std::string>& mapper, std::string);
 		std::string sha256(std::string str);
+
+		Json::Value verifyAndReadJwt(std::string jwt, std::string secretKey);
+		std::string generateJwt(Json::Value value, std::string secretKey);
+
+		std::string generateRandomString(int length);
 	}
 }
 

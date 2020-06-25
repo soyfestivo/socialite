@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <regex>
+#include <json/json.h>
 
 #include "server.h"
 #include "../server.h"
@@ -15,6 +16,7 @@
 
 #define WS_GET 0x1a1
 #define WS_POST 0x1b1
+#define WS_OPTIONS 0x1e1
 
 #define KEEP_ALIVE 0x1c1
 #define CLOSE 0x1d1
@@ -22,6 +24,7 @@
 const std::string HEADER_SERVER_ERROR = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
 const std::string HEADER_BAD_REQUEST = "HTTP/1.1 400 Bad Request\r\n\r\n";
 
+const std::string HEADER_UNAUTHORIZED = "HTTP/1.1 401 Unauthorized\r\n";
 const std::string HEADER_FORBIDDEN = "HTTP/1.1 403 Forbidden\r\n";
 const std::string HEADER_NOT_FOUND = "HTTP/1.1 404 Not Found\r\n";
 const std::string HEADER_OK = "HTTP/1.1 200 OK\r\n";
@@ -64,6 +67,7 @@ typedef struct http_h {
 	int contentLength;           // only used when POST
 	std::string postData;        // if type == POST, get data from contentlength
 	std::map<std::string, std::string> postMap;
+	std::string authorizationToken;
 } HttpHeader;
 
 typedef struct host_config {
@@ -74,6 +78,8 @@ typedef struct host_config {
 	std::vector< std::pair<std::string, std::string> > rewriteRules;
 	std::vector<std::string> serverRewriteRules;
 	std::vector<std::string> authRequired;
+	std::string authType;
+	std::string signInRoute;
 	std::string forbiddenURI;
 	bool redirect;
 	std::string redirectHost;
@@ -107,6 +113,7 @@ namespace Socialite {
 			bool useSSLAlso;
 			std::string sslCert;
 			std::string sslKey;
+			std::string jwtSecretKey;
 			Socialite::Web::Server* sslServer;
 
 			void handleConnection(NetStream* stream) override;
@@ -121,6 +128,7 @@ namespace Socialite {
 			// override us!
 			virtual std::string serverAPI(HttpHeader* header, HttpResponseHeader* rHeader, std::string ip, std::smatch matcher, bool* success);
 			virtual bool verifyUser(std::string username, std::string hash);
+			virtual Json::Value attemptJwtSignIn(std::string username, std::string password);
 		public:
 			// HTTPS init
 			Server(std::string cert, std::string key, std::string certPassword);

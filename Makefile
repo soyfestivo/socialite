@@ -1,5 +1,5 @@
 FLAGS = -std=c++11 -g
-LIBS = -lssl -lcrypto -lresolv -lJuggler
+LIBS = -lssl -lcrypto -lresolv -lJuggler -lJSONcpp
 EXTRA_INCLUDES = -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib
 
 # namespaces
